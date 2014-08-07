@@ -1,0 +1,3 @@
+module Pathblazer
+  VERSION = '0.1'
+end

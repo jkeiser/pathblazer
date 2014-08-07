@@ -1,0 +1,255 @@
+require 'pathblazer/errors'
+require 'pathblazer/path_set/path_expression'
+require 'pathblazer/path_set/optimizers'
+
+module Pathblazer
+  #
+  # A PathSet is a set of paths.  It is generally used for matching.
+  #
+  # It could be a list of actual paths, or a regular expression or glob that
+  # matches paths, or something different altogether.
+  #
+  # You can match a pathset against a path, or another pathset.
+  #
+  class PathSet
+    def initialize(matcher)
+      if matcher.is_a?(PathSet)
+        @matcher = matcher.matcher
+      else
+        @matcher = matcher
+      end
+    end
+
+    #
+    # Returns true if this PathSet matches no paths.
+    #
+    def empty?
+      PathExpression.range(matcher)[0].nil?
+    end
+
+    #
+    # Returns true if this PathSet is exact (exact_path will work).
+    #
+    def exact?
+      matcher.is_a?(Array) || matcher.is_a?(String)
+    end
+
+    #
+    # Return the array of strings for this path.
+    #
+    # Exceptions:
+    # InfinitePathSetException - if you run this on a path that has * in it.
+    #
+    # Example:
+    #
+    #     if exact?
+    #       puts path.exact_path.join('/')
+    #     end
+    #
+    def exact_path
+      if matcher.is_a?(Array)
+        return matcher
+      elsif matcher.is_a?(String)
+        return [ matcher ]
+      else
+        raise InfinitePathSetException.new(self, "Getting :exact_path")
+      end
+    end
+
+    #
+    # Returns the depth of the longest path in the set.  Returns nil if infinite.
+    #
+    def depth
+      PathExpression.range(matcher)[1]
+    end
+
+    #
+    # Returns the depth of the smallest path in the set.  nil if there are no paths.
+    #
+    def min_depth
+      PathExpression.range(matcher)[0]
+    end
+
+    #
+    # Iterate over the list of paths.
+    #
+    # Block: |path|
+    #
+    # Each result is a PathSet and will be as close to a single exact path as it
+    # can (unions will be removed).  If there are * repeats or [a-z] character
+    # sets, they will be returned verbatim.
+    #
+    # Call exact? to find out if a path is exact.
+    #
+    def each
+      Optimizers.unfold_unions(matcher).each
+    end
+
+    #
+    # Descend downward into the pathset, one directory at a time.  Each result
+    # is a PathSet.
+    #
+    # Exceptions:
+    # InfinitePathSetException - if you run this on a path that has * in it.
+    #
+    # This can descend infinitely if there are constructs like **.  Test the
+    # path for depth == nil before committing to this.
+    #
+    # Block: |path|
+    #
+    def descend
+      next_descend = matcher
+      while next_descend != PathExpression.EMPTY
+        dir, next_descend = Optimizers.descend(matcher)
+        yield dir
+      end
+    end
+
+    #
+    # Descend downward into the pathset, yielding each filename.
+    #
+    # This can descend infinitely if there are constructs like **.  You have
+    # been warned.
+    #
+    # Block: |path|
+    #
+    def each_filename
+      next_descend = matcher
+      while next_descend != PathExpression.EMPTY
+        dir, next_descend = PathExpression.descend(matcher)
+        yield dir
+      end
+    end
+
+    # Pathname methods:
+    # ascend
+    # each_filename
+    # +
+    # ==
+    # <=>
+    # absolute?
+    # basename
+    # join
+    # parent
+    # root? (probably only for uri paths)
+    # absolute?
+    # relative?
+    # relative_path_from
+    # cleanpath
+
+    #
+    # Delete a subset of the pathset.
+    #
+    def delete(pathset)
+      raise ActionNotSupportedError.new(:delete, self)
+    end
+
+    alias :-, delete
+
+    #
+    # Create a pathset containing only paths in both this and the other pathset.
+    #
+    def filter(pathset)
+      raise ActionNotSupportedError.new(:filter, self)
+    end
+
+    alias intersection, filter
+    alias :&, filter
+
+    #
+    # Create a pathset containing all paths in both pathsets.
+    #
+    def union(pathset)
+      raise ActionNotSupportedError.new(:union, self)
+    end
+
+    alias :|, union
+
+    #
+    # Create a new pathset matching each path in a followed by each path in b.
+    #
+    # a.join(b) == a/b
+    # {a,b}.join({c,d}) == {a,b}/{c,d}
+    #
+    def join(*pathset)
+      raise ActionNotSupportedError.new(:join, self)
+    end
+
+    alias :+, join
+
+    #
+    # Split the pathset by path separator.
+    #
+    # Equivalent to repeating chdir('*') over and over.
+    #
+    # Arguments:
+    # - n - the number of paths to split by--n=1 means return a head and a long tail.
+    #
+    # Example:
+    # parts = path.split
+    # head, remainder = path.split(1)
+    def split_top(n=nil)
+      results = []
+      tail = self
+      while true
+        head, new_tail = tail.chdir('*')
+        results << head
+        if new_tail.empty?
+          return results
+        end
+        if tail == new_tail
+          raise InfinitePathSetError.new(self)
+        end
+        tail = new_tail
+      end
+      results
+    end
+
+    #
+    # Descend into the given path.
+    #
+    # Returns a PathMap where the range is an intersected A&B
+    #
+    # More formally, return a pair of pathsets [a,b] such that a.join(b) == self&(pathset.join('**'))
+    #
+    # (It looks a lot like a partial intersection, don't it?)
+    #
+    # If pathset is an exact path, a == pathset and b == remainder of self
+    #
+    def chdir(pathset)
+      raise ActionNotSupportedError.new(:each, self)
+    end
+
+    #
+    # A list of pathsets without unions in them that represent this pathset.
+    # (Repeats like * and ** are allowed.)
+    #
+    def without_unions
+      raise ActionNotSupportedError.new(:each, self)
+    end
+
+    #
+    # Expand .. and . along the path, to the extent possible. If a path is
+    # passed as an argument, expands relative to that path and creates an
+    # absolute URL if .. goes off the top of the path.
+    #
+    # 'x/y/.././z'.expand_path -> 'x/z'
+    # '../x/./y/z'.expand_path('/a/b/c') -> /a/b/c/x/y/z
+    #
+    def expand_path(pathset=nil)
+      raise ActionNotSupportedError.new(:each, self)
+    end
+
+    #
+    # Tell whether this path is absolute.
+    #
+    def absolute?
+      # TODO implement absolute paths, . and ..
+      false
+    end
+
+    private
+
+    NOT_SET = Object.new
+  end
+end
