@@ -1,7 +1,6 @@
-require 'empathic/regex'
+require 'pathblazer/path_set/formats/bash'
 
-module Superbasic
-  include Pathblazer::Regex::Superbasic
+module
 
   def parse(str)
     results = []

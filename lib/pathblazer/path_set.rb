@@ -4,19 +4,29 @@ require 'pathblazer/path_set/optimizers'
 
 module Pathblazer
   #
+  # A PathSet is a path or matcher describing a set of paths.
+  #
+  # They are designed to:
+  # - Work with different OS- or shell-specific user input
+  # - Be useable with any system that supports named hierarchies (file system
+  #   globs, database custom translation, in-memory regexes)
+  # - Allow multi-dimensional namespaces (like a directory tree with metadata
+  #   trees sprouting off each directory)
+  # - Support file description
+  # - be intelligible and easy to look at, debug and print for the user
+  #
+  # Some examples:
   # A PathSet is a set of paths.  It is generally used for matching.
   #
-  # It could be a list of actual paths, or a regular expression or glob that
-  # matches paths, or something different altogether.
-  #
-  # You can match a pathset against a path, or another pathset.
+  # It could be a single path, a list of actual paths, or a regular expression
+  # or glob that matches paths, or something different altogether.
   #
   class PathSet
-    def initialize(matcher)
-      if matcher.is_a?(PathSet)
-        @matcher = matcher.matcher
+    def initialize(path)
+      if path.is_a?(PathSet)
+        @path = path.path
       else
-        @matcher = matcher
+        @path = path
       end
     end
 
@@ -24,14 +34,20 @@ module Pathblazer
     # Returns true if this PathSet matches no paths.
     #
     def empty?
-      PathExpression.range(matcher)[0].nil?
+      PathExpression.range(path)[0].nil?
+    end
+
+    #
+    # Returns true if this PathSet includes the root path.
+    #
+    def include_root?
     end
 
     #
     # Returns true if this PathSet is exact (exact_path will work).
     #
     def exact?
-      matcher.is_a?(Array) || matcher.is_a?(String)
+      path.is_a?(Array) || path.is_a?(String)
     end
 
     #
@@ -47,10 +63,10 @@ module Pathblazer
     #     end
     #
     def exact_path
-      if matcher.is_a?(Array)
-        return matcher
-      elsif matcher.is_a?(String)
-        return [ matcher ]
+      if path.is_a?(Array)
+        return path
+      elsif path.is_a?(String)
+        return [ path ]
       else
         raise InfinitePathSetException.new(self, "Getting :exact_path")
       end
@@ -60,14 +76,14 @@ module Pathblazer
     # Returns the depth of the longest path in the set.  Returns nil if infinite.
     #
     def depth
-      PathExpression.range(matcher)[1]
+      PathExpression.range(path)[1]
     end
 
     #
     # Returns the depth of the smallest path in the set.  nil if there are no paths.
     #
     def min_depth
-      PathExpression.range(matcher)[0]
+      PathExpression.range(path)[0]
     end
 
     #
@@ -82,7 +98,7 @@ module Pathblazer
     # Call exact? to find out if a path is exact.
     #
     def each
-      Optimizers.unfold_unions(matcher).each
+      Optimizers.unfold_unions(path).each
     end
 
     #
@@ -98,9 +114,9 @@ module Pathblazer
     # Block: |path|
     #
     def descend
-      next_descend = matcher
+      next_descend = path
       while next_descend != PathExpression.EMPTY
-        dir, next_descend = Optimizers.descend(matcher)
+        dir, next_descend = Optimizers.descend(path)
         yield dir
       end
     end
@@ -114,9 +130,9 @@ module Pathblazer
     # Block: |path|
     #
     def each_filename
-      next_descend = matcher
+      next_descend = path
       while next_descend != PathExpression.EMPTY
-        dir, next_descend = PathExpression.descend(matcher)
+        dir, next_descend = PathExpression.descend(path)
         yield dir
       end
     end
@@ -144,7 +160,7 @@ module Pathblazer
       raise ActionNotSupportedError.new(:delete, self)
     end
 
-    alias :-, delete
+    alias :- :delete
 
     #
     # Create a pathset containing only paths in both this and the other pathset.
@@ -153,8 +169,8 @@ module Pathblazer
       raise ActionNotSupportedError.new(:filter, self)
     end
 
-    alias intersection, filter
-    alias :&, filter
+    alias :intersection :filter
+    alias :& :filter
 
     #
     # Create a pathset containing all paths in both pathsets.
@@ -163,7 +179,7 @@ module Pathblazer
       raise ActionNotSupportedError.new(:union, self)
     end
 
-    alias :|, union
+    alias :| :union
 
     #
     # Create a new pathset matching each path in a followed by each path in b.
@@ -175,7 +191,7 @@ module Pathblazer
       raise ActionNotSupportedError.new(:join, self)
     end
 
-    alias :+, join
+    alias :+ :join
 
     #
     # Split the pathset by path separator.

@@ -59,7 +59,7 @@ module Pathblazer
         def consume_both(new_result=nil)
           OperationThread.new(
             self, new_result,
-            next_a, next_b
+            next_a, next_b,
             EMPTY, EMPTY,
             swapped)
         end
@@ -79,7 +79,7 @@ module Pathblazer
         def consume_b(remaining_a=nil)
           OperationThread.new(
             self, new_result,
-            concat(remaining_a, next_a), next_b
+            concat(remaining_a, next_a), next_b,
             EMPTY, EMPTY,
             swapped)
         end
@@ -121,12 +121,12 @@ module Pathblazer
       def start_intersect(a, b)
         OperationThread.new(nil, EMPTY, a, b, EMPTY, EMPTY, false)
       end
-      alias :regular_start_intersect, :start_intersect
+      alias :regular_start_intersect :start_intersect
 
       def intersect(a, b)
         intersect_loop([ start_intersect(a, b) ])
       end
-      alias :regular_intersect, :intersect
+      alias :regular_intersect :intersect
 
       def intersect_loop(ops)
         results = []
@@ -141,7 +141,7 @@ module Pathblazer
         end
         results
       end
-      alias :regular_intersect_loop, :intersect_loop
+      alias :regular_intersect_loop :intersect_loop
 
       def advance_intersect(op)
         if op.a == op.b
@@ -196,7 +196,7 @@ module Pathblazer
         nil
       end
 
-      alias :regular_advance_intersect, :advance_intersect
+      alias :regular_advance_intersect :advance_intersect
 
       #
       # Sequence:
@@ -211,10 +211,10 @@ module Pathblazer
         elsif op.a.items.size == 1
           return op.alternative_a(op.a.items[0])
         else
-          return op.alternative_a(op.a.items[0], concat(op.a.items[1..]))
+          return op.alternative_a(op.a.items[0], concat(op.a.items[1..-1]))
         end
       end
-      alias :regular_intersect_sequence, :intersect_sequence
+      alias :regular_intersect_sequence :intersect_sequence
 
       #
       # Union:
@@ -224,7 +224,7 @@ module Pathblazer
       def intersect_union(op)
         return op.a.expressions.map { |expr| op.alternative_a(expr) }
       end
-      alias :regular_intersect_union, :intersect_union
+      alias :regular_intersect_union :intersect_union
 
       #
       # Repeat(A,m,n):
@@ -270,13 +270,13 @@ module Pathblazer
       # abc   -> a
       # abca -> bc(abc)*
       #
-      # (abc)[2..] & ab
+      # (abc)[2..-1] & ab
       # ---------------
-      # ab -> c(abc)[1..]*
+      # ab -> c(abc)[1..-1]*
       #
-      # (abc)[2..] & abc
+      # (abc)[2..-1] & abc
       # ----------------
-      # abc -> abc[1..]
+      # abc -> abc[1..-1]
       #
       # (abc)* & (xyz)*
       # ---------------
@@ -340,7 +340,7 @@ module Pathblazer
           op.alternative_a(op.a.expression, tail) # A -> A*
         )
       end
-      alias :regular_intersect_repeat, :intersect_repeat
+      alias :regular_intersect_repeat :intersect_repeat
 
       def intersect_infinite_repeaters(op)
         # We are trying to
@@ -379,13 +379,13 @@ module Pathblazer
           #    -> A1 & B1*B2 - consume B1* completely with no A1* mixed
           #    A1*C*B1* -> A2&B2 - intermixed, with A1 first, where C is special sauce
           #    B1*C*A1* -> A2&B2 - intermixed, with B1 first, where C is special sauce
-          result << op.consume_a,
-          result << op.consume_b,
-          result << op.consume_both(concat(op.a, Repeat.new(expr, 0, nil), op.b)),
+          result << op.consume_a
+          result << op.consume_b
+          result << op.consume_both(concat(op.a, Repeat.new(expr, 0, nil), op.b))
           result << op.consume_both(concat(op.b, Repeat.new(expr, 0, nil), op.a))
         end
       end
-      alias :regular_intersect_repeaters, :intersect_repeaters
+      alias :regular_intersect_infinite_repeaters :intersect_infinite_repeaters
 
       #
       # Exact sequence: a sequence where we are guaranteed each item is a single
@@ -409,12 +409,12 @@ module Pathblazer
             op.swap
           end
           if op.a[0..op.b.size-1] == op.b
-            return [ op.consume_b(op.a[op.b.size..]) ]
+            return [ op.consume_b(op.a[op.b.size..-1]) ]
           end
           return []
         end
       end
-      alias :regular_intersect_exact_sequence, :intersect_exact_sequence
+      alias :regular_intersect_exact_sequence :intersect_exact_sequence
 
       def range(path)
         if expression.is_a?(Sequence)
@@ -458,7 +458,7 @@ module Pathblazer
           [ 1, 1 ]
         end
       end
-      alias :regular_range, :range
+      alias :regular_range :range
     end
   end
 end

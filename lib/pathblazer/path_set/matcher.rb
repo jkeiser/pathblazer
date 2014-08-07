@@ -498,7 +498,7 @@ module Pathblazer
             if a == b
               return [ [ a, EMPTY_ATOM ] ]
             elsif b.start_with?(a)
-              return [ [ a => b[a.length..] ] ]
+              return [ [ a => b[a.length..-1] ] ]
             else
               return []
             end

@@ -1,7 +1,7 @@
 module Pathblazer
   module Errors
     # All Pathblazer errors descend from this.
-    class PathblazerError < Error
+    class PathblazerError < StandardError
     end
 
     # A source-specific error.

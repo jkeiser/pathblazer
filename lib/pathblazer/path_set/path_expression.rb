@@ -153,8 +153,8 @@ module Pathblazer
       Sequence = Struct.new(:items)
       Repeat = Struct.new(:expression, :min, :max)
       ExactSequence = Array
-      ANY = CharExpression.STAR
-      GLOBSTAR = Repeat.new(STAR, 0, nil)
+      ANY = CharExpression::STAR
+      GLOBSTAR = Repeat.new(ANY, 0, nil)
       # TODO dot and dotdot
 
       # Concatenate paths with breaks between them
@@ -207,21 +207,22 @@ module Pathblazer
       end
 
       def self.descend(expression)
-        if expression.is_a?(PathExpression::Sequence)
+        case expression.class
+        when PathExpression::Sequence
           result = EMPTY
           expression.items.each_with_index do |item, index|
             head, tail = descend(item)
             result = concat(result, head)
             if range(head)[0] > 0
-              return [ head, concat(expression.items[index+1..]) ]
+              return [ head, concat(expression.items[index+1..-1]) ]
             end
           end
           return [ result, EMPTY ]
 
-        elsif expression.is_a?(PathExpression::ExactSequence)
-          [ expression[0], expression[1..] ]
+        when PathExpression::ExactSequence
+          [ expression[0], expression[1..-1] ]
 
-        elsif expression.is_a?(PathExpression::Union)
+        when PathExpression::Union
           heads = Set.new
           tails = Set.new
           expression.members.each do |child|
@@ -231,11 +232,12 @@ module Pathblazer
           end
           [ union(heads), union(tails) ]
 
-        elsif expression.is_a?(PathExpression::Repeat)
+        when PathExpression::Repeat
           if expression.max && expression.max == 1
             [ expression, EMPTY ]
           else
             [ repeat(expression.expression, ) ]
+          end
         end
       end
 

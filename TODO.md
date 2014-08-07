@@ -1,0 +1,21 @@
+Paths:
+  - specs
+  - absolute v. relative paths
+  - . and ..
+  - Character class complement (regex /[abc&&[^def]])
+  - charsets
+  - complement
+  - Unicode character classes - any other unicode thingies?
+  - generic parser
+  - disallow empty path in bash / generic
+  - URLs
+  - path lists (a:b:c or a;b;c)
+  - case sensitivity
+  - bash parser with regexes
+  - windows parser
+  - automatically cleaning paths after parsing, perhaps by marking with a
+    bifurcated tree
+  - implement intersection on bifurcated paths: let path sep leak into CharExpression
+  - pathname compat
+  - Set compat
+  - cd
