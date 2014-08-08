@@ -150,12 +150,12 @@ module Pathblazer
               right = expression.items[index+1..-1]
               case surfaced
               when PathExpression::Sequence
-                result = CharExpression.atomic_sandwich(left, surfaced.items, right)
+                result = CharExpression.concat(left, surfaced.items, right)
 
               # x{a/b/c,d/e/f}y -> {xa/b/cy,xd/e/fy}
               when PathExpression::Union
                 result = PathExpression.union(
-                  surfaced.members.map { |member| CharExpression.atomic_sandwich(left, [ member ], right) })
+                  surfaced.members.map { |member| CharExpression.concat(left, [ member ], right) })
 
               # abc{x/y/z/}*def ->
               # abcX*def -< abcdef, abcXdef, abcX/Xdef, abcX/X/Xdef
@@ -169,11 +169,11 @@ module Pathblazer
                   unions << CharExpression.concat(left, right)
                 end
                 if surfaced.min <= 1 && (!surfaced.max || surfaced.max >= 1)
-                  unions << CharExpression.atomic_sandwich(left, [ surfaced.expression ], right)
+                  unions << CharExpression.concat(left, [ surfaced.expression ], right)
                 end
                 if !surfaced.max || surfaced.max >= 2
                   center = PathExpression.repeat(surfaced.expression, [ surfaced.min-2, 0 ].max, surfaced.max ? surfaced.max-2 : nil)
-                  unions << CharExpression.atomic_sandwich(
+                  unions << CharExpression.concat(
                     left, [ surfaced.expression ], center, [ surfaced.expression ], right
                   )
                 end

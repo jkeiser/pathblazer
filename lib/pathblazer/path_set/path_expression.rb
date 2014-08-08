@@ -168,12 +168,10 @@ module Pathblazer
             result += path
           when Repeat, Union, CharExpression::Sequence, CharExpression::ExactSequence, CharExpression::Repeat, CharExpression::Union, Charset
             result << path
+          when NOTHING
+            return NOTHING
           else
-            if path == NOTHING
-              return NOTHING
-            else
-              raise "Unknown type #{path.type} passed to concat: #{path.inspect}"
-            end
+            raise "Unknown type #{path.type} passed to concat: #{path.inspect}"
           end
         end
         if result.size == 0

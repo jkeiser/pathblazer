@@ -7,18 +7,22 @@ describe Pathblazer::PathSet::Formats::Bash do
     PathSet::Formats::Bash.new
   end
 
+  Path = PathSet::PathExpression
+  Char = PathSet::CharExpression
+
   context 'basic tokens' do
     TESTS = {
       'a' => 'a',
       'abc' => 'abc',
       '' => [],
-      '*' => PathSet::CharExpression::STAR,
+      '*' => Char::STAR,
       '\\\\\\a\\/' => '\\a/',
       'a/b' => [ 'a', 'b' ],
-#      'abc/*/def' => PathSet::PathExpression::Sequence.new([ 'abc', PathSet::CharExpression::STAR, 'def' ])
+      'a/b/c' => [ 'a', 'b', 'c' ],
+      'abc/*/def' => Path::Sequence.new([ 'abc', Char::STAR, 'def' ])
     }
     TAGS = {
-#      'a/b' => [:focus]
+#      'abc/*/def' => [:focus]
     }
 
     TESTS.each do |input, expected|

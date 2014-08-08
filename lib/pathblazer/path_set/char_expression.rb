@@ -62,44 +62,73 @@ module Pathblazer
         raise "No character intersector written for #{op.a.class} and #{op.a.class}"
       end
 
+      #
+      # Concatenate expressions with no path separator between them and produce
+      # a single result expression.  Will detect single-element concatenates
+      # and handle EMPTY correctly.
+      #
+      # Paths have
+      # porous borders, so that a{b/c}d == ab/cd.  concat will detect path
+      # sequences and smoosh the a into the b and the c into the d, so to speak.
+      #
       def self.concat(*expressions)
-        if expressions.size == 0
-          return EMPTY
-        end
 
-        result = [[]]
+        result_paths = []
+        current_path = []
         expressions.each_with_index do |expression, index|
+          # Concatenating EMPTY + a = a
+          if current_path[-1] == EMPTY
+            current_path.pop
+          end
+
           case expression
           when Sequence
-            result[-1] += expression.items
+            current_path += expression.items
           when ExactSequence
-            result[-1] << expression
+            # Smoosh strings together
+            if current_path[-1].is_a?(ExactSequence)
+              current_path[-1] += expression
+            else
+              current_path << expression
+            end
           when PathExpression::Sequence
-            if expression.items.size > 0
-              result << expression.items
-              result << []
+            # Paths have porous edges, and we've been told to atomically concatenate
+            # this path with the previous one.  We smoosh previous_path.last up
+            # against new_path.first, and put the remaining paths into result_paths
+            # (the last path will be eligible for further smooshing).
+            if expression.items.size >= 1
+              current_path << expression.items[0]
+              result_paths << build_sequence(current_path)
+              if expression.items.size >= 2
+                result_paths += expression.items[1..-2]
+                current_path = [ expression.items[-1] ]
+              end
             end
           when PathExpression::ExactSequence
-            if expression.size > 0
-              result << expression
-              result << []
+            if expression.size >= 1
+              current_path << expression[0]
+              result_paths << build_sequence(current_path)
+              if expression.size >= 2
+                result_paths += expression[1..-2]
+                current_path = [ expression[-1] ]
+              end
             end
           when Repeat, Union, Charset, PathExpression::Repeat, PathExpression::Union
-            result[-1] << expression
+            current_path << expression
+          when NOTHING
+            return NOTHING
           else
-            if expression == NOTHING
-              return NOTHING
-            else
-              raise ParseError, "Unknown type #{expression.type} passed to concat: #{expression.inspect}"
-            end
+            raise ParseError, "Unknown type #{expression.type} passed to concat: #{expression.inspect}"
           end
         end
-        if result.size == 1
-          result = build_sequence(result[0])
+        result_paths << build_sequence(current_path) if current_path.size > 0
+        if result_paths.size == 0
+          EMPTY
+        elsif result_paths.size == 1
+          result_paths[0]
         else
-          result = atomic_sandwich(result)
+          PathExpression.concat(*result_paths)
         end
-        result
       end
 
       def self.build_sequence(array)
@@ -110,35 +139,6 @@ module Pathblazer
           return array[0]
         end
         array.all? { |e| e.is_a?(ExactSequence) } ? array.join('') : Sequence.new(array)
-      end
-
-      def self.atomic_sandwich(slices)
-        result = []
-        slices.each do |slice|
-          if result.size == 0
-            result << slice if slice.size > 0
-          else
-            previous = result[-1].pop
-            result += smoosh(previous||[], slice)
-          end
-        end
-        result = result.map { |r| build_sequence(r) }
-        PathExpression.concat(*result)
-      end
-
-      # Smoosh two arrays of atomics together, returning head, smooshed, and tail.
-      def self.smoosh(a, b)
-        if a.size == 0
-          if b.size == 0
-            []
-          else
-            [ b ]
-          end
-        elsif b.size == 0
-          [ a ]
-        else
-          [ a[0..-2], [ concat(a[-1], b[0]) ], b[1..-1] ].select { |e| e.size > 0 }.to_a
-        end
       end
 
       def self.union(*path)
