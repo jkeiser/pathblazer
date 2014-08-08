@@ -8,12 +8,23 @@ describe Pathblazer::PathSet::Formats::Bash do
   end
 
   context 'basic tokens' do
-    it 'should read a as a path' do
-      expect(bash.from('a').expression).to eq 'a'
-    end
+    TESTS = {
+      'a' => 'a',
+      'abc' => 'abc',
+      '' => [],
+      '*' => PathSet::CharExpression::STAR,
+      '\\\\\\a\\/' => '\\a/',
+      'a/b' => [ 'a', 'b' ],
+#      'abc/*/def' => PathSet::PathExpression::Sequence.new([ 'abc', PathSet::CharExpression::STAR, 'def' ])
+    }
+    TAGS = {
+#      'a/b' => [:focus]
+    }
 
-    it 'should read empty path' do
-      expect(bash.from('').expression).to eq []
+    TESTS.each do |input, expected|
+      it "should parse #{input.inspect} as #{expected.inspect}", *(TAGS[input] || []) do
+        expect(bash.from(input).expression).to eq expected
+      end
     end
 
     # ''

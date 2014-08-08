@@ -166,7 +166,8 @@ module Pathblazer
             result += path.items
           when ExactSequence
             result += path
-          when Repeat, Union, CharExpression::Sequence, CharExpression::ExactSequence, CharExpression::Repeat, CharExpression::Union, CharExpression::Charset
+          when Repeat, Union, CharExpression::Sequence, CharExpression::ExactSequence, CharExpression::Repeat, CharExpression::Union, Charset
+            result << path
           else
             if path == NOTHING
               return NOTHING

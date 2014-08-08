@@ -95,10 +95,11 @@ module Pathblazer
           end
         end
         if result.size == 1
-          build_sequence(result[0])
+          result = build_sequence(result[0])
         else
           result = atomic_sandwich(result)
         end
+        result
       end
 
       def self.build_sequence(array)
@@ -117,7 +118,8 @@ module Pathblazer
           if result.size == 0
             result << slice if slice.size > 0
           else
-            result += smoosh(result[-1]||[], slice)
+            previous = result[-1].pop
+            result += smoosh(previous||[], slice)
           end
         end
         result = result.map { |r| build_sequence(r) }
@@ -130,12 +132,12 @@ module Pathblazer
           if b.size == 0
             []
           else
-            [ b[0], b[1..-1]]
+            [ b ]
           end
         elsif b.size == 0
-          [ a[0..-2], a[-1] ]
+          [ a ]
         else
-          [ a[0..-2], concat(a[-1], b[0]), b[1..-1] ]
+          [ a[0..-2], [ concat(a[-1], b[0]) ], b[1..-1] ].select { |e| e.size > 0 }.to_a
         end
       end
 
