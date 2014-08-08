@@ -21,6 +21,15 @@ describe Pathblazer::PathSet::Formats::Bash do
       'a/b' => [ 'a', 'b' ],
       '{a,b,c}' => Char::Union.new([ 'a', 'b', 'c']),
 
+      '{}' => [],
+      '{,}' => Char::Union.new([ '', '' ]),
+      '{a,*,b*c,d}' => Char::Union.new([ 'a', Char::STAR, Char::Sequence.new([ 'b', Char::STAR, 'c']), 'd' ]),
+      '{a,b/*/c,d}' => Char::Union.new([ 'a', Path::Sequence.new([ 'b', Char::STAR, 'c' ]), 'd']),
+      'a{b,c}d' => Char::Sequence.new([ 'a', Char::Union.new([ 'b', 'c' ]), 'd']),
+      'a{}b' => 'ab',
+      'a{/}b' => [ 'a', 'b' ],
+      'a/{b}/c' => [ 'a', 'b', 'c' ],
+
       'a/b/c' => [ 'a', 'b', 'c' ],
       'abc/*/def' => Path::Sequence.new([ 'abc', Char::STAR, 'def' ]),
       'a/b*c/d' => Path::Sequence.new([ 'a', Char::Sequence.new([ 'b', Char::STAR, 'c' ]), 'd']),
