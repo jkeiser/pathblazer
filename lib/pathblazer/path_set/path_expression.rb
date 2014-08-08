@@ -161,14 +161,18 @@ module Pathblazer
       def self.concat(*paths)
         result = []
         paths.each do |path|
-          if path.is_a?(Sequence)
+          case path
+          when Sequence
             result += path.items
-          elsif path.is_a?(ExactSequence)
+          when ExactSequence
             result += path
-          elsif path == NOTHING
-            return NOTHING
+          when Repeat, Union, CharExpression::Sequence, CharExpression::ExactSequence, CharExpression::Repeat, CharExpression::Union, CharExpression::Charset
           else
-            result << path
+            if path == NOTHING
+              return NOTHING
+            else
+              raise "Unknown type #{path.type} passed to concat: #{path.inspect}"
+            end
           end
         end
         if result.size == 0
@@ -207,7 +211,7 @@ module Pathblazer
       end
 
       def self.descend(expression)
-        case expression.class
+        case expression
         when PathExpression::Sequence
           result = EMPTY
           expression.items.each_with_index do |item, index|

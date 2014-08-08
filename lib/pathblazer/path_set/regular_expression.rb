@@ -304,9 +304,9 @@ module Pathblazer
         end
         if head != EMPTY
           if !op.a.max
-            tail = Repeat.new(operation.a.expression, 0, nil)
+            tail = repeat(operation.a.expression, 0, nil)
           elsif op.a.max > op.a.min
-            tail = Repeat.new(operation.a.expression, 0, op.a.max-op.a.min)
+            tail = repeat(operation.a.expression, 0, op.a.max-op.a.min)
           else
             tail = EMPTY
           end
@@ -333,7 +333,7 @@ module Pathblazer
         if !op.a.max
           tail = op.a
         else
-          tail = Repeat.new(op.a.expression, op.a.min, op.a.max - 1)
+          tail = repeat(op.a.expression, op.a.min, op.a.max - 1)
         end
         return Set.new(
           op.consume_a,
@@ -381,8 +381,8 @@ module Pathblazer
           #    B1*C*A1* -> A2&B2 - intermixed, with B1 first, where C is special sauce
           result << op.consume_a
           result << op.consume_b
-          result << op.consume_both(concat(op.a, Repeat.new(expr, 0, nil), op.b))
-          result << op.consume_both(concat(op.b, Repeat.new(expr, 0, nil), op.a))
+          result << op.consume_both(concat(op.a, repeat(expr, 0, nil), op.b))
+          result << op.consume_both(concat(op.b, repeat(expr, 0, nil), op.a))
         end
       end
       alias :regular_intersect_infinite_repeaters :intersect_infinite_repeaters

@@ -14,39 +14,42 @@ module Pathblazer
       attr_reader :error
     end
 
+    class ParseError < PathblazerError
+    end
+
     #
-    # An error involving a pathset.
+    # An error involving a path.
     #
     class PathError < PathblazerError
-      def initialize(pathset, *args)
+      def initialize(path, *args)
         super(*args)
       end
 
       #
-      # The pathset involved in the error.
+      # The path involved in the error.
       #
-      attr_reader :pathset
+      attr_reader :path
     end
 
     #
-    # The pathset did not match any results.
+    # The path did not match any results.
     #
     class PathMatchesNoResultsError < PathError
     end
 
     #
-    # The pathset already matched results: this error is thrown by set when
+    # The path already matched results: this error is thrown by set when
     # replacement is not allowed.
     #
     class PathAlreadyMatchesResults < PathError
     end
 
     #
-    # The pathset matched more than one result, and one result per pathset was required.
+    # The path matched more than one result, and one result per path was required.
     #
     class PathMatchesMultipleResultsError < PathError
-      def initialize(pathset, results, *args)
-        super(pathset, *args)
+      def initialize(path, results, *args)
+        super(path, *args)
         @results = results
       end
 
@@ -60,7 +63,7 @@ module Pathblazer
     end
 
     #
-    # Thrown when the pathset you pass is entirely out of range for the target.
+    # Thrown when the path you pass is entirely out of range for the target.
     #
     # This exception may not be thrown by all pathmaps: it exists as a convenient
     # way to signal the impossible match.
@@ -73,8 +76,8 @@ module Pathblazer
     # returned false or unknown.
     #
     class OnlyIfFailedError < PathError
-      def initialize(pathset, failed_results, *args)
-        super(pathset, *args)
+      def initialize(path, failed_results, *args)
+        super(path, *args)
         @failed_results = failed_results
       end
 

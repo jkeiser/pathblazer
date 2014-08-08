@@ -67,22 +67,76 @@ module Pathblazer
           return EMPTY
         end
 
-        result = []
-        expressions.each do |expression|
-          if expression.is_a?(Sequence)
-            result += expression.items
-          elsif expression.is_a?(ExactSequence)
-            result += expression
-          elsif expression == NOTHING
-            return NOTHING
+        result = [[]]
+        expressions.each_with_index do |expression, index|
+          case expression
+          when Sequence
+            result[-1] += expression.items
+          when ExactSequence
+            result[-1] << expression
+          when PathExpression::Sequence
+            if expression.items.size > 0
+              result << expression.items
+              result << []
+            end
+          when PathExpression::ExactSequence
+            if expression.size > 0
+              result << expression
+              result << []
+            end
+          when Repeat, Union, Charset, PathExpression::Repeat, PathExpression::Union
+            result[-1] << expression
           else
-            result << expression
+            if expression == NOTHING
+              return NOTHING
+            else
+              raise ParseError, "Unknown type #{expression.type} passed to concat: #{expression.inspect}"
+            end
           end
         end
-        if result.size == 0
+        if result.size <= 1
+          result = build_sequence(result)
+        else
+          result = atomic_sandwich(result)
+        end
+      end
+
+      def self.build_sequence(array)
+        if array.size == 0
           return EMPTY
         end
-        result.all? { |m| m.is_a?(ExactSequence) } ? result.join('') : Sequence.new(result, dirty)
+        if array.size == 1
+          return array[0]
+        end
+        array.all? { |e| e.is_a?(ExactSequence) } ? array.join('') : Sequence.new(array)
+      end
+
+      def self.atomic_sandwich(slices)
+        result = []
+        slices.each do |slice|
+          if result.size == 0
+            result << slice if slice.size > 0
+          else
+            result += smoosh(result[-1]||[], slice)
+          end
+        end
+        result = result.map { |r| build_sequence(r) }
+        PathExpression.concat(*result)
+      end
+
+      # Smoosh two arrays of atomics together, returning head, smooshed, and tail.
+      def self.smoosh(a, b)
+        if a.size == 0
+          if b.size == 0
+            []
+          else
+            [ b[0], b[1..-1]]
+          end
+        elsif b.size == 0
+          [ a[0..-2], a[-1] ]
+        else
+          [ a[0..-2], concat(a[-1], b[0]), b[1..-1] ]
+        end
       end
 
       def self.union(*path)

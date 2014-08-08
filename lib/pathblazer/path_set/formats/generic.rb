@@ -20,9 +20,9 @@ module Pathblazer
         end
 
         def construct_regexp(path)
-          case path.class
+          case path
           when PathSet
-            construct_regexp(path.path)
+            construct_regexp(path.expression)
           when String
             if path_separator && path.include?(path_separator)
               raise PathNotSupportedError(path, "Charsets including the path separator #{path_separator} cannot be turned into regexes")

@@ -7,7 +7,7 @@ module Pathblazer
       # Does not walk a string's "children."  Just yields the string.
       #
       def self.walk(expression, type = :pre)
-        case expression.class
+        case expression
         when CharExpression::Sequence, PathExpression::Sequence
           expression.items.each { |child| yield child }
         when PathExpression::ExactSequence
@@ -35,7 +35,7 @@ module Pathblazer
           expression = new_expression if new_expression
         end
 
-        case expression.class
+        case expression
         when PathExpression::Sequence
           walk_children(expression.items, type, block) do |new_children|
             expression = PathExpression.concat(new_children)
@@ -106,7 +106,7 @@ module Pathblazer
       #
       def self.unfold_unions(original)
         results = Set.new
-        case expression.class
+        case expression
         when CharExpression::Sequence, PathExpression::Sequence
           # This is where it gets multiplicative if you have a lot of unions
           results << PathExpression::EMPTY
@@ -141,20 +141,21 @@ module Pathblazer
       #
       def self.surface_paths(expression)
         transform(expression, :post) do |expression|
-          case expression.class
+          result = nil
+          case expression
           when CharExpression::Sequence
             expression.items.each do |surfaced, index|
               # x{a/b/c}y -> {xa/b/cy}
               left = expression.items[0..index-1]
               right = expression.items[index+1..-1]
-              case surfaced.class
+              case surfaced
               when PathExpression::Sequence
-                return atomic_sandwich(left, surfaced.items, right)
+                result = CharExpression.atomic_sandwich(left, surfaced.items, right)
 
               # x{a/b/c,d/e/f}y -> {xa/b/cy,xd/e/fy}
               when PathExpression::Union
-                return PathExpression.union(
-                  surfaced.members.map { |member| atomic_sandwich(left, [ member ], right) })
+                result = PathExpression.union(
+                  surfaced.members.map { |member| CharExpression.atomic_sandwich(left, [ member ], right) })
 
               # abc{x/y/z/}*def ->
               # abcX*def -< abcdef, abcXdef, abcX/Xdef, abcX/X/Xdef
@@ -168,13 +169,13 @@ module Pathblazer
                   unions << CharExpression.concat(left, right)
                 end
                 if surfaced.min <= 1 && (!surfaced.max || surfaced.max >= 1)
-                  unions << atomic_sandwich(left, [ surfaced.expression ], right)
+                  unions << CharExpression.atomic_sandwich(left, [ surfaced.expression ], right)
                 end
                 if !surfaced.max || surfaced.max >= 2
-                  left_sandwich = atomic_sandwich(left, [ surfaced.expression ], EMPTY)
-                  center = PathExpression::Repeat.new(surfaced.expression, [ surfaced.min-2, 0 ].max, surfaced.max ? surfaced.max-2 : nil)
-                  right_sandwich = atomic_sandwich(EMPTY, [ surfaced.expression ], right)
-                  unions << PathExpression.concat(left_sandwich, center, right_sandwich)
+                  center = PathExpression.repeat(surfaced.expression, [ surfaced.min-2, 0 ].max, surfaced.max ? surfaced.max-2 : nil)
+                  unions << CharExpression.atomic_sandwich(
+                    left, [ surfaced.expression ], center, [ surfaced.expression ], right
+                  )
                 end
                 return PathExpression.union(*unions)
               end
@@ -185,19 +186,19 @@ module Pathblazer
             # = {<first>, {<middle>, <last><first>}*, <middle>, <last>}?
             # {a/b/ca/b/ca/b/c}
             surfaced = expression.expression
-            case surfaced.class
+            case surfaced
             when PathExpression::Sequence
               if surfaced.size <= 1
-                return CharExpression::Repeat.new(surfaced[0], expression.min, expression.max)
+                return CharExpression.repeat(surfaced[0], expression.min, expression.max)
               else
                 first = surfaced[0]
                 middle = surfaced[1..-2]
                 last = surfaced[-1]
                 if !expression.max || expression.max >= 2
                   repeat_expr = PathExpression.concat(middle, CharExpression.concat(last, first))
-                  repeat = PathExpression::Repeat.new(repeat_expr,
-                                                      expression.min > 0 ? expression.min-1 : 0,
-                                                      expression.max ? expression.max-1 : nil)
+                  repeat = PathExpression.repeat(repeat_expr,
+                                                 expression.min > 0 ? expression.min-1 : 0,
+                                                 expression.max ? expression.max-1 : nil)
                   path = PathExpression.concat(first, repeat, middle, last)
                 elsif expression.max >= 1
                   path = PathExpression.concat(first, middle, last)
@@ -205,7 +206,7 @@ module Pathblazer
                   return EMPTY
                 end
                 if expression.min == 0
-                  PathExpression::Repeat.new(path, 0, 1)
+                  PathExpression.repeat(path, 0, 1)
                 end
               end
 
@@ -235,22 +236,13 @@ module Pathblazer
             when PathExpression::Repeat
               raise "path repeats inside a character repeat not currently supported due to lack of maths"
             end
-          end
-        end
-      end
 
-      def self.atomic_sandwich(left, path, right)
-        if surfaced.is_a?(PathExpression::Sequence)
-          left += [ surfaced.items[0] ] if surfaced.items > 0
-          right = [ surfaced.items[-1] ] + right_side if surfaced.items > 1
-          if surfaced.items.size <= 1
-            return surface_paths(CharExpression.concat(*left_side, *right_side))
-          else
-            return surface_paths(
-                     PathExpression.concat(
-                       CharExpression.concat(*left_side),
-                       *surfaced.items[1..-2],
-                       CharExpression.concat(*right_side)))
+            if result != nil
+              # We built something new, we need to make sure what we built ain't broke
+              surface_paths(result)
+            else
+              nil
+            end
           end
         end
       end

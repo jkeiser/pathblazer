@@ -1,5 +1,6 @@
 Paths:
   - specs
+  - strip empty paths (probably part of absolute v. relative)
   - absolute v. relative paths
   - . and ..
   - Character class complement (regex /[abc&&[^def]])

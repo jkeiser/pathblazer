@@ -13,8 +13,8 @@ module Pathblazer
         attr_reader :name
         attr_reader :ch
 
-        def self.bash
-          @bash ||= new('generic', GlobChars.new)
+        def self.generic
+          @bash ||= new('generic', GlobChars.new({}))
         end
 
         def escape(str)
@@ -22,9 +22,9 @@ module Pathblazer
         end
 
         def construct_glob(path)
-          case path.class
+          case path
           when PathSet
-            construct_glob(path.path)
+            construct_glob(path.expression)
 
           when String
             if ch.path_sep && path.include?(ch.path_sep)

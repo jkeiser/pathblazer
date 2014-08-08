@@ -14,7 +14,7 @@ module Pathblazer
         def initialize
           super('/')
           @top_level_regexp = /(\\.|\*\*|\*|\?|\[([^\]]|\\\])*\]|#{Regexp.escape(path_separator)}|\{)/
-          @in_union_regexp =  /(\\.|\*\*|\*|\?|\[([^\]]|\\\])*\]|#{Regexp.escape(path_separator)}|\{|\{|,|\}))/
+          @in_union_regexp =  /(\\.|\*\*|\*|\?|\[([^\]]|\\\])*\]|#{Regexp.escape(path_separator)}|\{|\{|,|\})/
         end
 
         def from(str)
@@ -22,20 +22,20 @@ module Pathblazer
             result, token, remaining = parse_path(str.to_s, top_level_regexp)
             PathSet.new(result)
           elsif str.is_a?(Path)
-            PathSet.new(str.path)
+            PathSet.new(str.expression)
           end
         end
 
         def to_regexp(path)
-          PathExpression.to_regexp(path.path, path_separator)
+          PathExpression.to_regexp(path.expression, path_separator)
         end
 
         def to_glob(str)
-          construct_glob(path.path)
+          construct_glob(path.expression)
         end
 
         def to_s(path)
-          construct_glob(path.path)
+          construct_glob(path.expression)
         end
 
         protected
@@ -69,7 +69,7 @@ module Pathblazer
               break
             end
           end
-          if remaining != ''
+          if remaining
             path = PathExpression.concat(path, remaining)
           end
 
@@ -109,7 +109,7 @@ module Pathblazer
           end
 
           # If we failed to match, return the rest of the string
-          return [ string + str, nil, nil ]
+          return [ built_string + str, nil, nil ]
         end
       end
     end

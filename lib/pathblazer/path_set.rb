@@ -23,18 +23,24 @@ module Pathblazer
   #
   class PathSet
     def initialize(path)
-      if path.is_a?(PathSet)
-        @path = path.path
+      if expression.is_a?(PathSet)
+        @path = path.expression
       else
-        @path = path
+        @path = expression
       end
+    end
+
+    attr_reader :expression
+
+    def ==(other)
+      other.is_a?(PathSet) && expression == other.expression
     end
 
     #
     # Returns true if this PathSet matches no paths.
     #
     def empty?
-      PathExpression.range(path)[0].nil?
+      PathExpression.range(expression)[0].nil?
     end
 
     #
@@ -47,11 +53,11 @@ module Pathblazer
     # Returns true if this PathSet is exact (exact_path will work).
     #
     def exact?
-      path.is_a?(Array) || path.is_a?(String)
+      expression.is_a?(Array) || expression.is_a?(String)
     end
 
     #
-    # Return the array of strings for this path.
+    # Return the array of strings for this expression.
     #
     # Exceptions:
     # InfinitePathSetException - if you run this on a path that has * in it.
@@ -59,13 +65,13 @@ module Pathblazer
     # Example:
     #
     #     if exact?
-    #       puts path.exact_path.join('/')
+    #       puts expression.exact_expression.join('/')
     #     end
     #
     def exact_path
-      if path.is_a?(Array)
+      if expression.is_a?(Array)
         return path
-      elsif path.is_a?(String)
+      elsif expression.is_a?(String)
         return [ path ]
       else
         raise InfinitePathSetException.new(self, "Getting :exact_path")
@@ -202,8 +208,8 @@ module Pathblazer
     # - n - the number of paths to split by--n=1 means return a head and a long tail.
     #
     # Example:
-    # parts = path.split
-    # head, remainder = path.split(1)
+    # parts = expression.split
+    # head, remainder = expression.split(1)
     def split_top(n=nil)
       results = []
       tail = self
@@ -222,7 +228,7 @@ module Pathblazer
     end
 
     #
-    # Descend into the given path.
+    # Descend into the given expression.
     #
     # Returns a PathMap where the range is an intersected A&B
     #
@@ -247,7 +253,7 @@ module Pathblazer
     #
     # Expand .. and . along the path, to the extent possible. If a path is
     # passed as an argument, expands relative to that path and creates an
-    # absolute URL if .. goes off the top of the path.
+    # absolute URL if .. goes off the top of the expression.
     #
     # 'x/y/.././z'.expand_path -> 'x/z'
     # '../x/./y/z'.expand_path('/a/b/c') -> /a/b/c/x/y/z
