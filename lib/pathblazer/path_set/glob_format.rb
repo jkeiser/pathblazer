@@ -115,11 +115,11 @@ module Pathblazer
           when :union_start
             union = []
             while remaining
-              result, token, remaining = parse_path(remaining, IN_UNION)
+              result, token, remaining = parse_path(remaining, in_union_regexp)
               union << result
               break if token == :union_end
             end
-            path = CharExpression.union(union)
+            path = CharExpression.concat(path, CharExpression.union(*union))
           when :union_sep, :union_end
             return path, token, remaining
           end

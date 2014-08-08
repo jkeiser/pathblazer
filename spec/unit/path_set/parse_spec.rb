@@ -16,16 +16,20 @@ describe Pathblazer::PathSet::Formats::Bash do
       'abc' => 'abc',
       '' => [],
       '*' => Char::STAR,
+      '**' => Path::GLOBSTAR,
       '\\\\\\a\\/' => '\\a/',
       'a/b' => [ 'a', 'b' ],
+      '{a,b,c}' => Char::Union.new([ 'a', 'b', 'c']),
+
       'a/b/c' => [ 'a', 'b', 'c' ],
       'abc/*/def' => Path::Sequence.new([ 'abc', Char::STAR, 'def' ]),
       'a/b*c/d' => Path::Sequence.new([ 'a', Char::Sequence.new([ 'b', Char::STAR, 'c' ]), 'd']),
       'a/b/c/d/e/f/g' => %w(a b c d e f g),
+
       '/' => [ '', '' ],
       '///' => [ '', '', '', '' ],
       'a//b' => [ 'a', '', 'b' ],
-      '**' => Path::GLOBSTAR,
+
       'a**b' => Char::Sequence.new([ 'a', Path::GLOBSTAR, 'b' ]),
       'a/**/b' => Path::Sequence.new([ 'a', Path::GLOBSTAR, 'b' ]),
       'a/b**c/d' => Path::Sequence.new([ 'a', Char::Sequence.new([ 'b', Path::GLOBSTAR, 'c' ]), 'd' ]),

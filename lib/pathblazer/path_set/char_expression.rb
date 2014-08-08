@@ -167,7 +167,7 @@ module Pathblazer
         array.all? { |e| e.is_a?(ExactSequence) } ? array.join('') : Sequence.new(array)
       end
 
-      def self.union(*path)
+      def self.union(*paths)
         result = []
         paths.each do |path|
           if path.is_a?(Union)
