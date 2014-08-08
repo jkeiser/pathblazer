@@ -38,7 +38,7 @@ module Pathblazer
 
         DEFAULT_GLOB_CHARS = {
           :path_sep          => '/',
-          :any               => '?',
+          :one               => '?',
           :star              => '*',
           :globstar          => '**',
           :escape            => '\\',

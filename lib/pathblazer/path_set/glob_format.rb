@@ -47,7 +47,7 @@ module Pathblazer
 
         when Charset
           if path == CharExpression::ANY
-            ch[:any]
+            ch[:one]
           else
             result = ch[:charset_start]
             path.ranges.each do |min, max|
@@ -122,6 +122,10 @@ module Pathblazer
             path = CharExpression.concat(path, CharExpression.union(*union))
           when :union_sep, :union_end
             return path, token, remaining
+          when nil
+            # Not a problem
+          else
+            raise "Unsupported token #{token.inspect}!"
           end
         end
 
@@ -140,15 +144,19 @@ module Pathblazer
         built_string = ''
         while match = regexp.match(str)
           built_string << match.pre_match
-          token = match.captures[0]
+          token_str = match.captures[0]
           str = match.post_match
 
-          if token[0] == ch[:escape]
-            built_string << token[1]
-          elsif token[0] == ch[:charset_start]
+          if token_str[0] == ch[:escape]
+            built_string << token_str[1]
+          elsif token_str[0] == ch[:charset_start]
             raise "charsets not yet supported: #{token}"
           else
-            return [ built_string, tokens[token], str ]
+            token = tokens[token_str]
+            if !token
+              raise "Unsupported token match #{token_str}!"
+            end
+            return [ built_string, token, str ]
           end
         end
 

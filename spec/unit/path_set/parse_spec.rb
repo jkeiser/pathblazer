@@ -20,6 +20,7 @@ describe Pathblazer::PathSet::Formats::Bash do
       '\\\\\\a\\/' => '\\a/',
       'a/b' => [ 'a', 'b' ],
       '{a,b,c}' => Char::Union.new([ 'a', 'b', 'c']),
+      '?' => Char::ANY,
 
       '{}' => [],
       '{,}' => Char::Union.new([ '', '' ]),
