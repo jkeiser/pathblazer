@@ -66,14 +66,11 @@ module Pathblazer
               end
               path = CharExpression.union(union)
             when :union_sep, :union_end
-              break
+              return path, token, remaining
             end
           end
-          if remaining
-            path = PathExpression.concat(path, remaining)
-          end
 
-          path
+          [ path, nil, nil ]
         end
 
         def next_match(str, regexp)

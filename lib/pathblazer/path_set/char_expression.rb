@@ -94,8 +94,8 @@ module Pathblazer
             end
           end
         end
-        if result.size <= 1
-          result = build_sequence(result)
+        if result.size == 1
+          build_sequence(result[0])
         else
           result = atomic_sandwich(result)
         end

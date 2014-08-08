@@ -9,8 +9,13 @@ describe Pathblazer::PathSet::Formats::Bash do
 
   context 'basic tokens' do
     it 'should read a as a path' do
-      expect(bash.from('a')).to eq PathSet.new('a')
+      expect(bash.from('a').expression).to eq 'a'
     end
+
+    it 'should read empty path' do
+      expect(bash.from('').expression).to eq []
+    end
+
     # ''
     # abc
     # *

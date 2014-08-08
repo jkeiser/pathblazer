@@ -23,10 +23,10 @@ module Pathblazer
   #
   class PathSet
     def initialize(path)
-      if expression.is_a?(PathSet)
-        @path = path.expression
+      if path.is_a?(PathSet)
+        @expression = path.expression
       else
-        @path = expression
+        @expression = path
       end
     end
 
