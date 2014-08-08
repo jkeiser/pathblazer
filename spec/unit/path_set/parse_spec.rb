@@ -20,17 +20,22 @@ describe Pathblazer::PathSet::Formats::Bash do
       'a/b' => [ 'a', 'b' ],
       'a/b/c' => [ 'a', 'b', 'c' ],
       'abc/*/def' => Path::Sequence.new([ 'abc', Char::STAR, 'def' ]),
+      'a/b*c/d' => Path::Sequence.new([ 'a', Char::Sequence.new([ 'b', Char::STAR, 'c' ]), 'd']),
       'a/b/c/d/e/f/g' => %w(a b c d e f g),
       '/' => [ '', '' ],
       '///' => [ '', '', '', '' ],
       'a//b' => [ 'a', '', 'b' ],
+      '**' => Path::GLOBSTAR,
+      'a**b' => Char::Sequence.new([ 'a', Path::GLOBSTAR, 'b' ]),
+      'a/**/b' => Path::Sequence.new([ 'a', Path::GLOBSTAR, 'b' ]),
+      'a/b**c/d' => Path::Sequence.new([ 'a', Char::Sequence.new([ 'b', Path::GLOBSTAR, 'c' ]), 'd' ]),
     }
     TAGS = {
-#      '/' => [:focus]
+#      'a/b*c/d' => [:focus]
     }
 
     TESTS.each do |input, expected|
-      it "should parse #{input.inspect} as #{expected.inspect}", *(TAGS[input] || []) do
+      it "should parse #{input.inspect} as #{expected}", *(TAGS[input] || []) do
         expect(bash.from(input).expression).to eq expected
       end
     end

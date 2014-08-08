@@ -1,3 +1,14 @@
+Pathblazer is an application library to help with paths and configuration.  It can:
+
+- Handle OS and file system differences with path format and case sensitivity
+- Allow interaction with many data sources including file, web, SQL, in-memory
+  Ruby code, through a unified path interface
+- Layer data sources on top of each other, mapping them where they don't fit,
+  to create unified interfaces
+- Expose data for read and write via web and ssl
+- Add authorization, caching, and other features to anything.
+- Make it easy to attach user path searches like * and ** to arbitrary data sources
+
 A store represents a system that can use paths to get or set a tree of
 values.  (Not all stores can set values.)
 

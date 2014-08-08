@@ -9,12 +9,32 @@ module Pathblazer
 
       NOTHING = :nothing
       EMPTY = ''
-      Union = Struct.new(:members)
-      Sequence = Struct.new(:items)
-      Repeat = Struct.new(:expression, :min, :max)
+      Union = Struct.new(:members) do
+        def to_s
+          "Char(#{members.join(" | ")})"
+        end
+      end
+      Sequence = Struct.new(:items) do
+        def to_s
+          "Char(#{items.join(", ")})"
+        end
+      end
+      Repeat = Struct.new(:expression, :min, :max) do
+        def to_s
+          if min == 0 && !max
+            if expression == ANY
+              '*'
+            else
+              "Char(#{expression})*"
+            end
+          else
+            "Char(#{expression}){#{min},#{max}}"
+          end
+        end
+      end
       ExactSequence = String
-      ANY = Charset.new([ [ '\0', '\u10FFFF' ] ]) # 10FFFF is the biggest unicode char
-      STAR = Repeat.new(ANY)
+      ANY = Charset.new([ [ "\0", "\u10FFFF" ] ]) # 10FFFF is the biggest unicode char
+      STAR = Repeat.new(ANY, 0)
 
       def self.intersect_exact_string(op)
         results = regular_intersect_exact_string(op)
@@ -74,7 +94,7 @@ module Pathblazer
       def self.concat(*expressions)
         result_paths = []
         current_path = []
-        expressions.each_with_index do |expression, index|
+        while expression = expressions.shift
           # Concatenating EMPTY + a = a
           if current_path[-1] == EMPTY
             current_path.pop
@@ -102,7 +122,9 @@ module Pathblazer
               result_paths << build_sequence(current_path)
               if expression.items.size >= 2
                 result_paths += expression.items[1..-2]
-                current_path = [ expression.items[-1] ]
+                # Process the last bit next, as the start of a new path
+                expressions.unshift(expression.items[-1])
+                current_path = []
               end
             end
           when PathExpression::ExactSequence
@@ -111,7 +133,9 @@ module Pathblazer
               result_paths << build_sequence(current_path)
               if expression.size >= 2
                 result_paths += expression[1..-2]
-                current_path = [ expression[-1] ]
+                # Process the last bit next, as the start of a new path
+                expressions.unshift(expression[-1])
+                current_path = []
               end
             end
           when Repeat, Union, Charset, PathExpression::Repeat, PathExpression::Union

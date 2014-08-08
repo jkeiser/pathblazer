@@ -149,9 +149,29 @@ module Pathblazer
 
       NOTHING = :nothing
       EMPTY = []
-      Union = Struct.new(:members)
-      Sequence = Struct.new(:items)
-      Repeat = Struct.new(:expression, :min, :max)
+      Union = Struct.new(:members) do
+        def to_s
+          "Path(#{members.join(" | ")})"
+        end
+      end
+      Sequence = Struct.new(:items) do
+        def to_s
+          "Path(#{items.join(", ")})"
+        end
+      end
+      Repeat = Struct.new(:expression, :min, :max) do
+        def to_s
+          if min == 0 && !max
+            if expression == ANY
+              '**'
+            else
+              "Path(#{expression})*"
+            end
+          else
+            "Path(#{expression}){#{min},#{max}}"
+          end
+        end
+      end
       ExactSequence = Array
       ANY = CharExpression::STAR
       GLOBSTAR = Repeat.new(ANY, 0, nil)

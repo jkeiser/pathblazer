@@ -157,9 +157,9 @@ module Pathblazer
       end
 
       def token_regexp(*except)
-        matchers = ch.select { |k,v| !except.include?(k) && k != :escape }.map { |k,v| Regexp.escape(v) }
+        matchers = ch.select { |k,v| !except.include?(k) && k != :escape }.sort_by { |k,v| v.length }.reverse.map { |k,v| Regexp.escape(v) }
         if !except.include?(:escape) && ch[:escape]
-          matchers << "#{Regexp.escape(ch[:escape])}."
+          matchers.unshift("#{Regexp.escape(ch[:escape])}.")
         end
         /(#{matchers.join('|')})/
       end

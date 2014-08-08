@@ -8,6 +8,14 @@ module Pathblazer
 
       attr_reader :ranges
 
+      def to_s
+        if ranges == [ [ "\0", "\u10FFFF" ] ]
+          "."
+        else
+          "[#{ranges.map { |min,max| min==max ? min : "#{min}-#{max}" }.join(",")}]"
+        end
+      end
+
       def match?(ch)
         ranges.any? { |min,max| ch >= min && ch <= max }
       end
