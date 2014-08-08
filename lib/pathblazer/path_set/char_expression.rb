@@ -72,7 +72,6 @@ module Pathblazer
       # sequences and smoosh the a into the b and the c into the d, so to speak.
       #
       def self.concat(*expressions)
-
         result_paths = []
         current_path = []
         expressions.each_with_index do |expression, index|
@@ -80,6 +79,8 @@ module Pathblazer
           if current_path[-1] == EMPTY
             current_path.pop
           end
+          # Concatenating a + EMPTY = a
+          next if expression == EMPTY && current_path.size > 0
 
           case expression
           when Sequence
@@ -122,13 +123,14 @@ module Pathblazer
           end
         end
         result_paths << build_sequence(current_path) if current_path.size > 0
-        if result_paths.size == 0
+        result = if result_paths.size == 0
           EMPTY
         elsif result_paths.size == 1
           result_paths[0]
         else
           PathExpression.concat(*result_paths)
         end
+        result
       end
 
       def self.build_sequence(array)

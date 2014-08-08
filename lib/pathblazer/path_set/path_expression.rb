@@ -157,7 +157,7 @@ module Pathblazer
       GLOBSTAR = Repeat.new(ANY, 0, nil)
       # TODO dot and dotdot
 
-      # Concatenate paths with breaks between them
+      # Concatenate paths with path separators between them
       def self.concat(*paths)
         result = []
         paths.each do |path|
@@ -179,7 +179,8 @@ module Pathblazer
         elsif result.size == 1
           return result[0]
         end
-        result.all? { |m| m.is_a?(String) } ? result : Sequence.new(result)
+        result = result.all? { |m| m.is_a?(String) } ? result : Sequence.new(result)
+        result
       end
 
       def self.union(*path)

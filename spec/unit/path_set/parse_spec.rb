@@ -19,10 +19,12 @@ describe Pathblazer::PathSet::Formats::Bash do
       '\\\\\\a\\/' => '\\a/',
       'a/b' => [ 'a', 'b' ],
       'a/b/c' => [ 'a', 'b', 'c' ],
-      'abc/*/def' => Path::Sequence.new([ 'abc', Char::STAR, 'def' ])
+      'abc/*/def' => Path::Sequence.new([ 'abc', Char::STAR, 'def' ]),
+      'a/b/c/d/e/f/g' => %w(a b c d e f g),
+      '/' => [ '', '' ]
     }
     TAGS = {
-#      'abc/*/def' => [:focus]
+#      '/' => [:focus]
     }
 
     TESTS.each do |input, expected|
@@ -45,5 +47,15 @@ describe Pathblazer::PathSet::Formats::Bash do
     # **
     # a**.txt
     # a/**/*
+  end
+
+  context 'concat' do
+    # Bash parser doesn't support empty paths, so we have to test that directly.
+    it 'Path.concat('', '') should yield [ '', '' ]' do
+      expect(Char.concat('', '')).to eq ''
+      expect(Char.concat([], '')).to eq ''
+      expect(Path.concat('', '')).to eq [ '', '' ]
+      expect(Char.concat([ '', '' ], '')).to eq [ '', '' ]
+    end
   end
 end

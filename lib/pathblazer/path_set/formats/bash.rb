@@ -20,8 +20,8 @@ module Pathblazer
         def from(str)
           if str.is_a?(String) || str.is_a?(Pathname)
             result, token, remaining = parse_path(str.to_s, top_level_regexp)
-            PathSet.new(result)
-          elsif str.is_a?(Path)
+            PathSet.new(result == CharExpression::EMPTY ? PathExpression::EMPTY : result)
+          elsif str.is_a?(PathSet)
             PathSet.new(str.expression)
           end
         end
@@ -44,10 +44,10 @@ module Pathblazer
         attr_reader :in_union_regexp
 
         def parse_path(remaining, regexp)
-          path = PathExpression::EMPTY
+          path = CharExpression::EMPTY
           while remaining
             str, token, remaining = next_match(remaining, regexp)
-            path = CharExpression.concat(path, str) if str != ''
+            path = CharExpression.concat(path, str)
             case token
             when :star
               path = CharExpression.concat(path, CharExpression::STAR)
@@ -70,7 +70,11 @@ module Pathblazer
             end
           end
 
-          [ path, nil, nil ]
+          # Empty paths are disallowed: when we get an empty path, treat it as
+          # "current directory"
+          path = PathExpression::EMPTY if path == CharExpression::EMPTY
+
+          [ path, nil, remaining ]
         end
 
         def next_match(str, regexp)
