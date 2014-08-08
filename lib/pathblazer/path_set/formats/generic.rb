@@ -1,4 +1,6 @@
+require 'pathname'
 require 'pathblazer/errors'
+require 'pathblazer/path_set'
 require 'pathblazer/path_set/path_expression'
 require 'pathblazer/path_set/char_expression'
 require 'pathblazer/path_set/glob_format'
@@ -7,17 +9,51 @@ module Pathblazer
   class PathSet
     module Formats
       class Generic
-        def initialize(path_separator)
-          @path_separator = '/'
-          @glob_format = GlobFormat.generic
+        def initialize(name, glob_format = {})
+          @name = name
+          @glob_format = GlobFormat.new(name, DEFAULT_GLOB_CHARS.merge(glob_format))
         end
 
-        attr_reader :path_separator
-        attr_reader :glob_format
+        attr_reader :name
 
-        def construct_glob(path)
+        def from(str)
+          if str.is_a?(String) || str.is_a?(Pathname)
+            glob_format.parse_glob(str)
+          elsif str.is_a?(PathSet)
+            PathSet.new(str.expression)
+          end
+        end
+
+        def to_glob(path)
           glob_format.construct_glob(path)
         end
+
+        def to_regexp(path)
+          /^#{construct_regexp(path, glob_format.ch[:path_sep])}$/
+        end
+
+        def to_s(path)
+          to_glob(path)
+        end
+
+        DEFAULT_GLOB_CHARS = {
+          :path_sep          => '/',
+          :any               => '?',
+          :star              => '*',
+          :globstar          => '**',
+          :escape            => '\\',
+          :union_start       => '{',
+          :union_end         => '}',
+          :union_sep         => ',',
+          :charset_start     => '[',
+          :charset_end       => ']',
+          :charset_invert    => '^',
+          :charset_range_sep => '-'
+        }
+
+        protected
+
+        attr_reader :glob_format
 
         def construct_regexp(path)
           case path
