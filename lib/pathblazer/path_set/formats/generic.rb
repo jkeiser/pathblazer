@@ -16,7 +16,7 @@ module Pathblazer
       class Generic
         def initialize(name, glob_format = {})
           @name = name
-          @glob_format = GlobFormat.new(name, DEFAULT_GLOB_CHARS.merge(glob_format))
+          @glob_format = GlobFormat.new(name, DEFAULT_GLOB_CHARS.merge(glob_format), {})
         end
 
         attr_reader :name
@@ -25,7 +25,7 @@ module Pathblazer
           if str.is_a?(String) || str.is_a?(Pathname)
             glob_format.parse_glob(str)
           elsif str.is_a?(PathSet)
-            PathSet.new(str.expression)
+            PathSet.new(str.expression, str.absolute, str.trailing_separator)
           end
         end
 

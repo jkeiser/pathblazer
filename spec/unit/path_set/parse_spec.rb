@@ -52,7 +52,7 @@ describe Pathblazer::PathSet::Formats::Bash do
       '\\'            => '\\',
 
       '{}'            => [],
-      '{,}'           => Char::Union.new([ '', '' ]),
+      '{,}'           => Char::Union.new([ [], [] ]),
       '{a,*,b*c,d}'   => Char::Union.new([ 'a', Char::STAR, Char::Sequence.new([ 'b', Char::STAR, 'c']), 'd' ]),
       '{a,b/*/c,d}'   => Char::Union.new([ 'a', Path::Sequence.new([ 'b', Char::STAR, 'c' ]), 'd']),
       'a{b,c}d'       => Char::Sequence.new([ 'a', Char::Union.new([ 'b', 'c' ]), 'd']),
@@ -67,9 +67,9 @@ describe Pathblazer::PathSet::Formats::Bash do
       'a/b*c/d'       => Path::Sequence.new([ 'a', Char::Sequence.new([ 'b', Char::STAR, 'c' ]), 'd']),
       'a/b/c/d/e/f/g' => %w(a b c d e f g),
 
-      '/'             => [ '', '' ],
-      '///'           => [ '', '', '', '' ],
-      'a//b'          => [ 'a', '', 'b' ],
+      '/'             => [],
+      '///'           => [],
+      'a//b'          => [ 'a', 'b' ],
 
       'a**b'          => Char::Sequence.new([ 'a', Path::GLOBSTAR, 'b' ]),
       'a/**/b'        => Path::Sequence.new([ 'a', Path::GLOBSTAR, 'b' ]),

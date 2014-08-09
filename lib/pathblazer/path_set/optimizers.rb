@@ -144,7 +144,7 @@ module Pathblazer
           result = nil
           case expression
           when CharExpression::Sequence
-            expression.items.each do |surfaced, index|
+            expression.items.each_with_index do |surfaced, index|
               # x{a/b/c}y -> {xa/b/cy}
               left = expression.items[0..index-1]
               right = expression.items[index+1..-1]

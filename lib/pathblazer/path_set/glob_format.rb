@@ -5,10 +5,11 @@ require 'pathblazer/path_set/char_expression'
 module Pathblazer
   class PathSet
     class GlobFormat
-      def initialize(name, ch)
+      def initialize(name, ch, options)
         @name = name
         @ch = ch
         @tokens = Hash[ch.map(&:reverse)]
+        @options = DEFAULT_OPTIONS.merge(options)
 
         @glob_escape_regexp = /(#{ch.values.map { |v| Regexp.escape(v) }.join('|')})/
         @top_level_regexp = token_regexp(TOP_LEVEL_GROUP)
@@ -18,6 +19,10 @@ module Pathblazer
       TOP_LEVEL_GROUP = [ :path_sep, :one, :star, :globstar, :union_start, :charset_start ]
       UNION_GROUP = TOP_LEVEL_GROUP + [ :union_sep, :union_end ]
       CHARSET_GROUP = [ :charset_invert, :charset_range_sep, :charset_end ]
+
+      DEFAULT_OPTIONS = {
+        :allow_empty_paths => false
+      }
 
       attr_reader :name
       # Map from token symbols to characters
@@ -97,51 +102,67 @@ module Pathblazer
       end
 
       def parse_glob(path)
-        result, token, remaining = parse_path(path, top_level_regexp)
-        PathSet.new(result == CharExpression::EMPTY ? PathExpression::EMPTY : result)
+        result, token, remaining, leading_sep, trailing_sep = parse_path(path, top_level_regexp)
+        PathSet.new(result, leading_sep, trailing_sep)
       end
 
       protected
 
-      def parse_path(remaining, regexp)
-        path = CharExpression::EMPTY
+      def concat(path, value, trailing_sep)
+        if value == PathExpression::EMPTY || value == CharExpression::EMPTY
+          return [path, trailing_sep]
+        end
+        if trailing_sep
+          return PathExpression.concat(path, value), false
+        else
+          return CharExpression.concat(path, value), false
+        end
+      end
+
+      def parse_path(remaining, regexp, trailing_sep=false)
+        path = PathExpression::EMPTY
+        leading_sep = false
+        trailing_sep = false
         while remaining
           str, token, remaining = next_match(remaining, regexp)
-          path = CharExpression.concat(path, str)
+          path, trailing_sep = concat(path, str, trailing_sep)
           case token
           when :star
-            path = CharExpression.concat(path, CharExpression::STAR)
+            path, trailing_sep = concat(path, CharExpression::STAR, trailing_sep)
           when :globstar
-            path = CharExpression.concat(path, PathExpression::GLOBSTAR)
+            path, trailing_sep = concat(path, PathExpression::GLOBSTAR, trailing_sep)
           when :path_sep
-            path = PathExpression.concat(path, CharExpression::EMPTY)
+            # Get rid of empty paths, but preserve information about the
+            # separators.
+            leading_sep = true if path == PathExpression::EMPTY
+            trailing_sep = true
           when :one
-            path = CharExpression.concat(path, CharExpression::ANY)
+            path, trailing_sep = concat(path, CharExpression::ANY, trailing_sep)
           when :union_start
             union = []
             while remaining
-              result, token, remaining = parse_path(remaining, in_union_regexp)
+              result, token, remaining, l, t = parse_path(remaining, in_union_regexp, trailing_sep)
               union << result
               break if token == :union_end
             end
-            path = CharExpression.concat(path, CharExpression.union(*union))
+            # Handle {/a/b/c,/d/e/f}
+            leading_sep ||= l if path == PathExpression::EMPTY
+            path, trailing_sep = concat(path, CharExpression.union(*union), trailing_sep)
+            trailing_sep = t
           when :union_sep, :union_end
-            return path, token, remaining
+            return path, token, remaining, leading_sep, trailing_sep
           when :charset_start
+            trailing_sep = false
             result, token, remaining = parse_charset(remaining)
-            path = CharExpression.concat(path, result)
+            path, trailing_sep = concat(path, result, trailing_sep)
           when nil
-            # When no more tokens can be found
+            # This happens when no more tokens can be found
           else
             raise "Unsupported token #{token.inspect}!"
           end
         end
 
-        # Empty paths are disallowed: when we get an empty path, treat it as
-        # "current directory"
-        path = PathExpression::EMPTY if path == CharExpression::EMPTY
-
-        [ path, nil, remaining ]
+        [ path, nil, remaining, leading_sep, trailing_sep ]
       end
 
       def parse_charset(remaining)

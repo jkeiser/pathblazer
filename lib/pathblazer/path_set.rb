@@ -22,15 +22,19 @@ module Pathblazer
   # or glob that matches paths, or something different altogether.
   #
   class PathSet
-    def initialize(path)
+    def initialize(path, absolute, trailing_separator)
       if path.is_a?(PathSet)
         @expression = path.expression
       else
         @expression = path
       end
+      @absolute = absolute
+      @trailing_separator = trailing_separator
     end
 
     attr_reader :expression
+    attr_reader :absolute
+    attr_reader :trailing_separator
 
     def ==(other)
       other.is_a?(PathSet) && expression == other.expression
