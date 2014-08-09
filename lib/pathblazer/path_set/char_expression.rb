@@ -33,7 +33,7 @@ module Pathblazer
         end
       end
       ExactSequence = String
-      ANY = Charset.new([ [ "\0", "\u10FFFF" ] ]) # 10FFFF is the biggest unicode char
+      ANY = Charset.any
       STAR = Repeat.new(ANY, 0)
 
       def self.intersect_exact_string(op)
@@ -80,6 +80,19 @@ module Pathblazer
         end
 
         raise "No character intersector written for #{op.a.class} and #{op.a.class}"
+      end
+
+      def self.charset(*ranges_and_characters)
+        result = Charset.new(*ranges_and_characters)
+        if result.size <= 1
+          result.first || NOTHING
+        else
+          result
+        end
+      end
+
+      def self.inverted_charset(*ranges_and_characters)
+        ~Charset.new(*ranges_and_characters)
       end
 
       #
@@ -170,8 +183,14 @@ module Pathblazer
       def self.union(*paths)
         result = []
         paths.each do |path|
-          if path.is_a?(Union)
+          case path
+          when Union
             result += path.members
+          when Charset
+            prev = result.index { |r| r.is_a?(Charset) }
+            if prev
+              result[prev] |= prev
+            end
           else
             result << path
           end

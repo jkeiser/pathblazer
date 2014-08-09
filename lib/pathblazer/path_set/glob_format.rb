@@ -9,10 +9,15 @@ module Pathblazer
         @name = name
         @ch = ch
         @tokens = Hash[ch.map(&:reverse)]
+
         @glob_escape_regexp = /(#{ch.values.map { |v| Regexp.escape(v) }.join('|')})/
-        @top_level_regexp = token_regexp(:union_sep, :union_end)
-        @in_union_regexp  = token_regexp
+        @top_level_regexp = token_regexp(TOP_LEVEL_GROUP)
+        @in_union_regexp  = token_regexp(UNION_GROUP)
       end
+
+      TOP_LEVEL_GROUP = [ :path_sep, :one, :star, :globstar, :union_start, :charset_start ]
+      UNION_GROUP = TOP_LEVEL_GROUP + [ :union_sep, :union_end ]
+      CHARSET_GROUP = [ :charset_invert, :charset_range_sep, :charset_end ]
 
       attr_reader :name
       # Map from token symbols to characters
@@ -122,8 +127,11 @@ module Pathblazer
             path = CharExpression.concat(path, CharExpression.union(*union))
           when :union_sep, :union_end
             return path, token, remaining
+          when :charset_start
+            result, token, remaining = parse_charset(remaining)
+            path = CharExpression.concat(path, result)
           when nil
-            # Not a problem
+            # When no more tokens can be found
           else
             raise "Unsupported token #{token.inspect}!"
           end
@@ -134,6 +142,54 @@ module Pathblazer
         path = PathExpression::EMPTY if path == CharExpression::EMPTY
 
         [ path, nil, remaining ]
+      end
+
+      def parse_charset(remaining)
+        if remaining[0] == ch[:charset_invert]
+          invert = true
+          index = 1
+        else
+          index = 0
+        end
+
+        ranges = []
+        token = nil
+        while index < remaining.length
+          if remaining[index] == ch[:charset_end]
+            index += 1
+            token = :charset_end
+            break
+          end
+          if remaining[index] == ch[:escape] && index+1 < remaining.size
+            index += 1
+          end
+          if remaining[index+1] == ch[:charset_range_sep] && remaining[index+2]
+            if remaining[index+2] == ch[:escape]
+              if remaining[index+3]
+                ranges << [ remaining[index], remaining[index+3] ]
+                index += 4
+              else
+                ranges << remaining[index]
+                index += 1
+              end
+            else
+              ranges << [ remaining[index], remaining[index+2] ]
+              index += 3
+            end
+          else
+            ranges << remaining[index]
+            index += 1
+          end
+        end
+
+        if invert
+          charset = CharExpression.inverted_charset(*ranges)
+        else
+          charset = CharExpression.charset(*ranges)
+        end
+        remaining = remaining[index..-1]
+        remaining = nil if remaining == ''
+        return charset, token, remaining
       end
 
       attr_reader :glob_escape_regexp
@@ -149,8 +205,6 @@ module Pathblazer
 
           if token_str[0] == ch[:escape]
             built_string << token_str[1]
-          elsif token_str[0] == ch[:charset_start]
-            raise "charsets not yet supported: #{token}"
           else
             token = tokens[token_str]
             if !token
@@ -164,9 +218,9 @@ module Pathblazer
         return [ built_string + str, nil, nil ]
       end
 
-      def token_regexp(*except)
-        matchers = ch.select { |k,v| !except.include?(k) && k != :escape }.sort_by { |k,v| v.length }.reverse.map { |k,v| Regexp.escape(v) }
-        if !except.include?(:escape) && ch[:escape]
+      def token_regexp(tokens)
+        matchers = tokens.map { |token| ch[token] }.sort_by { |v| v.length }.reverse.map { |v| Regexp.escape(v) }
+        if ch[:escape]
           matchers.unshift("#{Regexp.escape(ch[:escape])}.")
         end
         /(#{matchers.join('|')})/

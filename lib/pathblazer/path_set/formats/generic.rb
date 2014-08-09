@@ -8,6 +8,11 @@ require 'pathblazer/path_set/glob_format'
 module Pathblazer
   class PathSet
     module Formats
+      #
+      # Differences:
+      # 1. In bash, \/ is considered a path separator just as much as /.
+      # 2. In bash, /// is the same as /.  We see empty paths.
+      #
       class Generic
         def initialize(name, glob_format = {})
           @name = name
