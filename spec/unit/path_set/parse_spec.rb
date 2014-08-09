@@ -67,13 +67,19 @@ describe Pathblazer::PathSet::Formats::Bash do
       'a/b*c/d'       => Path::Sequence.new([ 'a', Char::Sequence.new([ 'b', Char::STAR, 'c' ]), 'd']),
       'a/b/c/d/e/f/g' => %w(a b c d e f g),
 
-      '/'             => [],
-      '///'           => [],
       'a//b'          => [ 'a', 'b' ],
 
       'a**b'          => Char::Sequence.new([ 'a', Path::GLOBSTAR, 'b' ]),
       'a/**/b'        => Path::Sequence.new([ 'a', Path::GLOBSTAR, 'b' ]),
       'a/b**c/d'      => Path::Sequence.new([ 'a', Char::Sequence.new([ 'b', Path::GLOBSTAR, 'c' ]), 'd' ]),
+    }
+    ABSOLUTE_TESTS = {
+      '/'             => [],
+      '/**'           => Path::GLOBSTAR,
+      '///'           => [],
+      '/{a,b}/'       => Char::Union.new(['a', 'b']),
+      '{/a/b,/c/d}e'  => Char::Sequence.new([Char::Union.new([['a', 'b'], ['c', 'd']]), 'e']),
+      '{a/b,/c/d}e'   => Char::Sequence.new([Char::Union.new([['a', 'b'], ['c', 'd']]), 'e']),
     }
     TAGS = {
       #'[a]' => [:focus]
@@ -81,7 +87,17 @@ describe Pathblazer::PathSet::Formats::Bash do
 
     TESTS.each do |input, expected|
       it "should parse #{input.inspect} as #{expected}", *(TAGS[input] || []) do
-        expect(bash.from(input).expression).to eq expected
+        result = bash.from(input)
+        expect(result.expression).to eq expected
+        expect(result.absolute?).to eq false
+      end
+    end
+
+    ABSOLUTE_TESTS.each do |input, expected|
+      it "should parse #{input.inspect} as #{expected}", *(TAGS[input] || []) do
+        result = bash.from(input)
+        expect(result.expression).to eq expected
+        expect(result.absolute?).to eq true
       end
     end
 

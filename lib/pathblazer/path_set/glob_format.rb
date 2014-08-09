@@ -41,7 +41,12 @@ module Pathblazer
       def construct_glob(path)
         case path
         when PathSet
-          construct_glob(path.expression)
+          glob = construct_glob(path.expression)
+          if path.absolute?
+            "#{ch[:path_sep]}#{glob}"
+          else
+            glob
+          end
 
         when String
           if ch[:path_sep] && path.include?(ch[:path_sep])

@@ -270,8 +270,7 @@ module Pathblazer
     # Tell whether this path is absolute.
     #
     def absolute?
-      # TODO implement absolute paths, . and ..
-      false
+      @absolute
     end
 
     private
