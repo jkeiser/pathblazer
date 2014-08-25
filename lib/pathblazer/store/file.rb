@@ -1,34 +1,29 @@
-require 'pathblazer/source'
+require 'pathblazer/store'
+require 'pathblazer/path_map'
 
 module Pathblazer
-  module Sources
-    class File
+  module Store
+    class File < PathMap
       # TODO get file to cooperate with authorization and further restrict by
       # actual user/group?
       def initialize(context, root)
         super(context)
-        @root = path.new(root)
+        @root = root
       end
+
+      include Pathblazer::DSL
 
       def range
         '**'
       end
 
-      def each(path=range, desired_data=Source.DEFAULT_DESIRED_DATA)
-        matches = path.glob_matches { |glob| Dir.glob((root + glob).to_s) }
-        matches.each { |match| yield construct_result(match, desired_data) }
-      end
-
-      def glob_matches
-        current = [ self ]
-        while matches, glob, next_part = path.next_glob
-          matches.each(current) do
-          end
+      def each(path=range, options={})
+        paths = path.match_step(:globstar => path.formats.bash) do |glob, regex|
+          Dir.glob(File.join(root, glob).select { |path| path =~ regex }
         end
-      end
-
-      def copy_to(store, options={})
-
+        paths.each do |path|
+          yield path.store_entry(path)
+        end
       end
     end
   end

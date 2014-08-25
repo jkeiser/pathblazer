@@ -1,6 +1,7 @@
 require 'pathblazer/path_set'
 require 'pathblazer/path_set/path_expression'
 require 'pathblazer/path_set/char_expression'
+require 'pathblazer/errors'
 
 module Pathblazer
   class PathSet
@@ -11,9 +12,13 @@ module Pathblazer
         @tokens = Hash[ch.map(&:reverse)]
         @options = DEFAULT_OPTIONS.merge(options)
 
-        @glob_escape_regexp = /(#{ch.values.map { |v| Regexp.escape(v) }.join('|')})/
         @top_level_regexp = token_regexp(TOP_LEVEL_GROUP)
         @in_union_regexp  = token_regexp(UNION_GROUP)
+        @top_level_escape_regexp = /(#{TOP_LEVEL_GROUP.map { |k| Regexp.escape(ch[k]) }.join('|')})/
+        @in_union_escape_regexp = /(#{UNION_GROUP.map { |k| Regexp.escape(ch[k]) }.join('|')})/
+        @charset_start_escape_regexp = /(#{[ :escape, :charset_invert, :charset_end ].map { |k| Regexp.escape(ch[k]) }.join('|')})/
+        @charset_escape_regexp = /(#{[ :escape, :charset_range_sep, :charset_end ].map { |k| Regexp.escape(ch[k]) }.join('|')})/
+        @charset_range_end_escape_regexp = /(#{[ :escape ].map { |k| Regexp.escape(ch[k]) }.join('|')})/
       end
 
       TOP_LEVEL_GROUP = [ :path_sep, :one, :star, :globstar, :union_start, :charset_start ]
@@ -34,80 +39,16 @@ module Pathblazer
         @bash ||= new('generic', GlobChars.new({}))
       end
 
-      def escape(str)
-        str.gsub(glob_escape_regex, '\\\1')
+      def escape(str, escape_regexp)
+        str.gsub(escape_regexp, '\\\\\1')
       end
 
       def construct_glob(path)
-        case path
-        when PathSet
-          glob = construct_glob(path.expression)
-          if path.absolute?
-            "#{ch[:path_sep]}#{glob}"
-          else
-            glob
-          end
-
-        when String
-          if ch[:path_sep] && path.include?(ch[:path_sep])
-            raise PathNotSupportedError(path, "Charsets including the path separator #{ch[:path_sep]} cannot be turned into globs in format #{name}")
-          end
-          escape(path)
-
-        when Array
-          if ch[:path_sep] && path.any? { |p| p.include?(ch[:path_sep]) }
-            raise PathNotSupportedError(path, "Charsets including the path separator #{ch[:path_sep]} cannot be turned into globs in format #{name}")
-          end
-          escape(path.join(ch[:path_sep]))
-
-        when Charset
-          if path == CharExpression::ANY
-            ch[:one]
-          else
-            result = ch[:charset_start]
-            path.ranges.each do |min, max|
-              if ch[:path_sep] && min <= ch[:path_sep] && ch[:path_sep] <= max
-                raise PathNotSupportedError(path, "Charsets including the path separator #{ch[:path_sep]} cannot be turned into globs in format #{name}")
-              end
-              if min == max
-                result << escape(min)
-              else
-                result << "#{escape(min)}#{ch[:charset_range_sep]}#{escape(max)}"
-              end
-            end
-            result << ch[:charset_end]
-            result
-          end
-
-        when PathExpression::Sequence
-          path.items.map { |item| construct(item) }.join(escape(ch[:path_sep]))
-        when CharExpression::Sequence
-          path.items.map { |item| construct(item) }.join('')
-        when PathExpression::Union
-          "#{ch[:union_start]}#{path.members.map { |item| construct(item) }.join(ch[:union_sep])}#{ch[:union_end]}"
-        when CharExpression::Union
-          "#{ch[:union_start]}#{path.members.map { |item| construct(item) }.join(ch[:union_sep])}#{ch[:union_start]}"
-        when PathExpression::Repeat
-          if path != PathExpression::GLOBSTAR
-            raise UnsupportedPathError.new(path, "Only #{ch[:star]} and #{ch[:globstar]} repeats are supported in format #{name}")
-          end
-          if !ch[:globstar]
-            raise UnsupportedPathError.new(path, "Globstar not supported in format #{name}")
-          end
-          # We turn path expression: repeat into (A/)*
-          ch[:globstar]
-        when CharExpression::Repeat
-          if path != PathExpression::ANY
-            raise UnsupportedPathError.new(path, "Only #{ch[:star]} and #{ch[:globstar]} repeats are supported in format #{name}")
-          end
-          ch[:star]
-        else
-          raise UnsupportedPathError.new(path, "Unrecognized path expression #{path} (class #{path.class})!")
-        end
+        construct_escaped_glob(path, @top_level_escape_regexp)
       end
 
       def parse_glob(path)
-        result, token, remaining, leading_sep, trailing_sep = parse_path(path, top_level_regexp)
+        result, token, remaining, leading_sep, trailing_sep = parse_path(path, @top_level_regexp)
         PathSet.new(result, leading_sep, trailing_sep)
       end
 
@@ -146,7 +87,7 @@ module Pathblazer
           when :union_start
             union = []
             while remaining
-              result, token, remaining, l, t = parse_path(remaining, in_union_regexp, trailing_sep)
+              result, token, remaining, l, t = parse_path(remaining, @in_union_regexp, trailing_sep)
               union << result
               break if token == :union_end
             end
@@ -218,10 +159,6 @@ module Pathblazer
         return charset, token, remaining
       end
 
-      attr_reader :glob_escape_regexp
-      attr_reader :top_level_regexp
-      attr_reader :in_union_regexp
-
       def next_match(str, regexp)
         built_string = ''
         while match = regexp.match(str)
@@ -250,6 +187,94 @@ module Pathblazer
           matchers.unshift("#{Regexp.escape(ch[:escape])}.")
         end
         /(#{matchers.join('|')})/
+      end
+
+      def construct_escaped_glob(path, escape_regexp)
+        case path
+        when PathSet
+          glob = construct_escaped_glob(path.expression, escape_regexp)
+          if path.absolute?
+            glob = "#{ch[:path_sep]}#{glob}"
+          end
+          if path.trailing_sep?
+            glob = "#{glob}#{ch[:path_sep]}"
+          end
+          glob
+
+        when String
+          if ch[:path_sep] && path.include?(ch[:path_sep])
+            raise PathNotSupportedError(path, "Paths including the path separator #{ch[:path_sep]} cannot be turned into globs in format #{name}")
+          end
+          escape(path, escape_regexp)
+
+        when Array
+          if ch[:path_sep] && path.any? { |p| p.include?(ch[:path_sep]) }
+            raise PathNotSupportedError(path, "Paths including the path separator #{ch[:path_sep]} cannot be turned into globs in format #{name}")
+          end
+          path.map { |p| escape(p, escape_regexp) }.join(ch[:path_sep])
+
+        when Charset
+          if path == CharExpression::ANY
+            ch[:one]
+          else
+            regexp = @charset_start_escape_regexp
+            result = ch[:charset_start].dup
+            if path.ranges.last[1] == Charset::UNICODE_MAX
+              result << ch[:charset_invert]
+              path = ~path
+            end
+            path.ranges.each do |min, max|
+              # If a range starts or ends with /, we assume they really want it to match /.
+              # If the range does not start or end with /, but includes it, we assume they
+              # don't care if it matches /.
+              if ch[:path_sep] && (min == ch[:path_sep].codepoints.first || max == ch[:path_sep].codepoints.first)
+                raise PathNotSupportedError.new(path, "Charsets including the path separator #{ch[:path_sep]} cannot be turned into globs in format #{name}")
+              end
+              if min == max
+                result << escape([min].pack('U*'), regexp)
+              else
+                result << "#{escape([min].pack('U*'), regexp)}#{ch[:charset_range_sep]}#{escape([max].pack('U*'), @charset_range_end_escape_regexp)}"
+              end
+              regexp = @charset_escape_regexp
+            end
+            result << ch[:charset_end]
+            result
+          end
+
+        when PathExpression::Sequence
+          path.items.map { |item| construct_escaped_glob(item, escape_regexp) }.join(ch[:path_sep])
+
+        when CharExpression::Sequence
+          path.items.map { |item| construct_escaped_glob(item, escape_regexp) }.join('')
+
+        when PathExpression::Union
+          "#{ch[:union_start]}#{path.members.map { |item| construct_escaped_glob(item, @in_union_escape_regexp) }.join(ch[:union_sep])}#{ch[:union_end]}"
+
+        when CharExpression::Union
+          "#{ch[:union_start]}#{path.members.map { |item| construct_escaped_glob(item, @in_union_escape_regexp) }.join(ch[:union_sep])}#{ch[:union_end]}"
+
+        when PathExpression::Repeat
+          if path != PathExpression::GLOBSTAR
+            raise UnsupportedPathError.new(path, "Only #{ch[:star]} and #{ch[:globstar]} repeats are supported in format #{name}")
+          end
+          if !ch[:globstar]
+            raise UnsupportedPathError.new(path, "Globstar not supported in format #{name}")
+          end
+          # We turn path expression: repeat into (A/)*
+          ch[:globstar]
+
+        when CharExpression::Repeat
+          if path != PathExpression::ANY
+            raise UnsupportedPathError.new(path, "Only #{ch[:star]} and #{ch[:globstar]} repeats are supported in format #{name}")
+          end
+          ch[:star]
+
+        when PathExpression::NOTHING, CharExpression::NOTHING
+          '[]'
+
+        else
+          raise UnsupportedPathError.new(path, "Unrecognized path expression #{path} (class #{path.class})!")
+        end
       end
     end
   end

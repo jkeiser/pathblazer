@@ -11,12 +11,12 @@ module Pathblazer
       EMPTY = ''
       Union = Struct.new(:members) do
         def to_s
-          "Char(#{members.join(" | ")})"
+          "Char(#{members.map { |m| m.to_s }.join(" | ")})"
         end
       end
       Sequence = Struct.new(:items) do
         def to_s
-          "Char(#{items.join(", ")})"
+          "Char(#{items.map { |m| m.to_s }.join(", ")})"
         end
       end
       Repeat = Struct.new(:expression, :min, :max) do

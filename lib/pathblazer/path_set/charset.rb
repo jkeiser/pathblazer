@@ -26,6 +26,9 @@ module Pathblazer
       def to_s
         if ranges == [ [ 0, UNICODE_MAX ] ]
           "."
+        elsif ranges.last[1] == UNICODE_MAX
+          inverted = ~self
+          "[^#{inverted.ranges.map { |min,max| min==max ? Charset.from_codepoint(min) : "#{Charset.from_codepoint(min)}-#{Charset.from_codepoint(max)}" }.join(",")}]"
         else
           "[#{ranges.map { |min,max| min==max ? Charset.from_codepoint(min) : "#{Charset.from_codepoint(min)}-#{Charset.from_codepoint(max)}" }.join(",")}]"
         end
@@ -112,9 +115,7 @@ module Pathblazer
       private
 
       def self.from_codepoint(codepoint)
-        x = ''
-        x << codepoint
-        x
+        [ codepoint ].pack('U*')
       end
 
       def self.init_ranges(ranges)

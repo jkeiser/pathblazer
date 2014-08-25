@@ -22,22 +22,22 @@ module Pathblazer
   # or glob that matches paths, or something different altogether.
   #
   class PathSet
-    def initialize(path, absolute, trailing_separator)
+    def initialize(path, absolute, trailing_sep = false)
       if path.is_a?(PathSet)
         @expression = path.expression
       else
         @expression = path
       end
       @absolute = absolute
-      @trailing_separator = trailing_separator
+      @trailing_sep = trailing_sep
     end
 
     attr_reader :expression
     attr_reader :absolute
-    attr_reader :trailing_separator
+    attr_reader :trailing_sep
 
     def ==(other)
-      other.is_a?(PathSet) && expression == other.expression
+      other.is_a?(PathSet) && expression == other.expression && absolute == other.absolute && trailing_sep == other.trailing_sep
     end
 
     #
@@ -51,6 +51,7 @@ module Pathblazer
     # Returns true if this PathSet includes the root path.
     #
     def include_root?
+      min_depth == 0
     end
 
     #
@@ -91,6 +92,7 @@ module Pathblazer
 
     #
     # Returns the depth of the smallest path in the set.  nil if there are no paths.
+    # 0 indicates the root path will match.
     #
     def min_depth
       PathExpression.range(path)[0]
@@ -128,6 +130,27 @@ module Pathblazer
       while next_descend != PathExpression.EMPTY
         dir, next_descend = Optimizers.descend(path)
         yield dir
+      end
+    end
+
+    #
+    # Step through the path cooperatively.  Calls the block with pathsets of the
+    # given type, which the block must then use to get real results.
+    #
+    # For example:
+    # path.match_step(:glob => context) do |glob|
+    #   Dir.glob
+    # end
+    #
+    # Block: |path|
+    #
+    # The block should return any matches for the path.  At the end, the final
+    # and full list of matches will be returned to the user.
+    #
+    def match_step(options={})
+      options[:glob]
+      if options.include?(:glob)
+
       end
     end
 
@@ -271,6 +294,10 @@ module Pathblazer
     #
     def absolute?
       @absolute
+    end
+
+    def trailing_sep?
+      @trailing_sep
     end
 
     private

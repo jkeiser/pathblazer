@@ -21,7 +21,7 @@ module Pathblazer
     # Restricting this will enable users of the pathmap to be more efficient.
     #
     def range
-      raise Errors::ActionNotSupportedError.new(:range, self)
+      raise ActionNotSupportedError.new(:range, self)
     end
 
     #
@@ -130,22 +130,22 @@ module Pathblazer
     #
     def get(pathset, options={})
       if options[:all]
+        result = []
+        each(pathset) do |value|
+          result << value
+        end
+        result
+      else
         result = NOT_SET
         each(pathset) do |value|
           if result == NOT_SET
             result = value
           else
-            raise Errors::PathDuplicatedError.new(path)
+            raise PathDuplicatedError.new(path)
           end
         end
         if result == NOT_SET
-          raise Errors::PathNotFoundError.new(path)
-        end
-        result
-      else
-        result = []
-        each(pathset) do |value|
-          result << value
+          raise PathNotFoundError.new(path)
         end
         result
       end

@@ -37,6 +37,7 @@ describe Pathblazer::PathSet::Formats::Bash do
       '[^b-yB-Y]'     => Charset.new([0, 'A'], 'Z-a', ['z', Charset::UNICODE_MAX]),
       '[]'            => Char::NOTHING,
       '[^]'           => Char::ANY,
+      '[\\^]'         => '^',
       '[A-Z'          => Charset.new('A-Z'),
       'a]-b[AB]]d'    => Char::Sequence.new([ 'a]-b', Charset.new('A', 'B'), ']d']),
       '['             => Char::NOTHING,
